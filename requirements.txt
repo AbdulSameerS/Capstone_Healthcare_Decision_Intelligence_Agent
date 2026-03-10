@@ -1,1 +1,7 @@
-
+duckdb
+pandas
+pyarrow
+numpy
+scikit-learn
+imbalanced-learn
+matplotlib
