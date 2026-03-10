@@ -70,22 +70,12 @@ This project builds a machine learning pipeline to predict **30-day hospital rea
 
 ## Repository Structure
 ```
-├── Project_Data_Loading.ipynb    # Main notebook (Steps 0–5D)
-├── requirements.txt              # Python dependencies
-├── README.md                     # This file
-└── DataScience_Capstone_Project/ # Data folder (on Google Drive)
-    ├── admissions.csv
-    ├── patients.csv
-    ├── diagnoses_icd.csv
-    ├── heart_diagnoses.csv
-    ├── heart_labevents_first_lab.csv
-    ├── heart_labevents_examination_group.csv
-    ├── heart_diagnoses_all.csv
-    ├── heart_diagnoses_all_true.csv
-    ├── heart_procedures.csv
-    ├── heart_microbiologyevents.csv
-    ├── heart_microbiologyevents_first_micro.csv
-    └── hf_project.duckdb
+├── Notebook/                     # Jupyter notebooks 
+├── dataset/                      # MIMIC-IV heart failure dataset files
+├── results/                      # Model outputs, plots, and evaluation results
+├── .gitattributes                # Git LFS 
+├── README.md                     # Project documentation
+└── requirements.txt              # Python dependencies
 ```
 
 ## How to Run
