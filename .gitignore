@@ -1,7 +1,0 @@
-.DS_Store
-.vscode/
-.ipynb_checkpoints/
-
-dataset/
-*.duckdb
-*.wal
