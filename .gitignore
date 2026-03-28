@@ -4,3 +4,12 @@
 dataset/
 *.duckdb
 *.wal
+__pycache__/
+Notebook/__pycache__/
+capstone_env/
+model_artifacts.pkl
+llm_outputs_gemini.json
+llm_outputs_full.json
+rag_prompts.json
+backend/*.json
+backend/*.log

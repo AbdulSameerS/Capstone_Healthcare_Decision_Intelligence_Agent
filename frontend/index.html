@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Decision Intelligence</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i data-lucide="activity" class="icon-large"></i>
+                <span>Decision<br>Intelligence</span>
+            </div>
+            <nav>
+                <button class="nav-btn active" onclick="switchTab('dashboard')">
+                    <i data-lucide="layout-dashboard"></i> Dashboard Home
+                </button>
+                <button class="nav-btn" onclick="switchTab('historical')">
+                    <i data-lucide="archive"></i> Historical Patients
+                </button>
+                <button class="nav-btn" onclick="switchTab('triage')">
+                    <i data-lucide="microscope"></i> Live Triage
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <!-- ====== DASHBOARD TAB ====== -->
+            <section id="tab-dashboard" class="tab-content active">
+                <header>
+                    <h1>Healthcare Decision Intelligence Agent</h1>
+                    <p>Leveraging MIMIC-IV to predict 30-day Heart Failure Readmission Risk with live Gemini alerting.</p>
+                </header>
+                <div class="glass-container metrics-grid" id="dashboard-metrics">
+                    <div class="metric-card">
+                        <h3 class="metric-title">Total Patients</h3>
+                        <p class="metric-value" id="val-patients">Loading...</p>
+                    </div>
+                    <div class="metric-card">
+                        <h3 class="metric-title">Analyzed Admissions</h3>
+                        <p class="metric-value" id="val-admissions">Loading...</p>
+                    </div>
+                    <div class="metric-card">
+                        <h3 class="metric-title">Readmission Rate</h3>
+                        <p class="metric-value" id="val-rate">Loading...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ====== HISTORICAL PATIENTS TAB ====== -->
+            <section id="tab-historical" class="tab-content">
+                <header>
+                    <h1>Historical Patient Lookup</h1>
+                    <p>Instantly retrieve predictions, SHAP explanations, and pre-computed Gemini AI clinical insights for existing patients.</p>
+                </header>
+                
+                <div class="glass-container control-panel">
+                    <label>Search Historical Admission (HADM_ID)</label>
+                    <div class="flex-row">
+                        <select id="patientSelect">
+                            <option value="">-- Select Patient --</option>
+                        </select>
+                        <button class="btn-primary" onclick="loadHistoricalPatient()">Retrieve Patient</button>
+                    </div>
+                </div>
+
+                <div class="results-grid" id="historical-results" style="display: none;">
+                    <!-- Left Column: Gemini Alerting -->
+                    <div class="glass-container ai-insights">
+                        <h2><i data-lucide="bot"></i> Gemini Clinical Insights</h2>
+                        
+                        <div id="hist-risk-badge" class="alert-box">
+                            <span class="badge-title">Current Alert Level</span>
+                            <h3 id="hist-risk-level">HIGH (24.0%)</h3>
+                        </div>
+
+                        <h4>🩺 Doctor's Summary</h4>
+                        <div class="info-box" id="hist-doctor-summary">Loading...</div>
+
+                        <h4>📋 Patient Precautions</h4>
+                        <ul class="precaution-list" id="hist-precautions"></ul>
+
+                        <h4>🗓️ Follow-Up Route</h4>
+                        <div class="success-box" id="hist-followup">Loading...</div>
+                        
+                        <details class="clinical-history-expand">
+                            <summary>View Original Clinical History</summary>
+                            <p id="hist-original-summary"></p>
+                        </details>
+                    </div>
+
+                    <!-- Right Column: SHAP Plot -->
+                    <div class="glass-container shap-analysis">
+                        <h2><i data-lucide="bar-chart-2"></i> SHAP Risk Drivers</h2>
+                        <p class="subtitle">Local feature importance explaining why this score was generated.</p>
+                        <div class="chart-wrapper">
+                            <canvas id="hist-shap-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ====== LIVE TRIAGE TAB ====== -->
+            <section id="tab-triage" class="tab-content">
+                <header>
+                    <h1>Live AI Admission Triage</h1>
+                    <p>Process a live patient. Adjust tabular clinical features, type an admitting note, and instantly generate risk predictions.</p>
+                </header>
+
+                <div class="results-grid">
+                    <!-- Left: Inputs -->
+                    <div class="glass-container triage-inputs">
+                        <h3>1. Model Tabular Features</h3>
+                        <div class="feature-table-wrapper" id="triage-features-container">
+                            <!-- Populated via JS -->
+                            <p>Loading baseline patient data...</p>
+                        </div>
+
+                        <h3 style="margin-top: 25px;">2. Doctor's Admitting Note</h3>
+                        <textarea id="triage-note" class="modern-textarea" rows="4">Patient presents with shortness of breath and elevated heart rate. Has a history of type 2 diabetes and hypertension.</textarea>
+                        
+                        <button class="btn-primary full-width" onclick="runLiveTriage()" id="btn-run-triage" style="margin-top: 20px;">
+                            🚀 Analyze Live Patient
+                        </button>
+                    </div>
+
+                    <!-- Right: Results -->
+                    <div class="glass-container ai-insights" id="triage-results" style="opacity: 0.5;">
+                        <h2>3. Live Intelligence Inference</h2>
+                        <div class="loader" id="triage-loader" style="display: none;"></div>
+                        
+                        <div id="triage-output-content" style="display: none;">
+                            <div class="large-risk-score">
+                                Computed Live Risk: <span id="triage-risk-pct" class="danger-text">--%</span>
+                            </div>
+                            
+                            <h4>🩺 Doctor's Live Alert</h4>
+                            <div class="info-box" id="triage-doctor-summary">...</div>
+
+                            <h4>📋 Actionable Precautions</h4>
+                            <ul class="precaution-list" id="triage-precautions"></ul>
+                            
+                            <h4>📉 Real-Time SHAP Waterfall</h4>
+                            <div class="chart-wrapper">
+                                <canvas id="triage-shap-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div id="triage-waiting-state">
+                            <p class="subtitle" style="text-align:center; padding: 40px;">Waiting for user input. Click 'Analyze Live Patient' to start inference.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Initialize Lucide Icons -->
+    <script>
+      lucide.createIcons();
+    </script>
+    <script src="app.js"></script>
+</body>
+</html>
