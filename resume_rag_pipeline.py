@@ -18,7 +18,7 @@ from groq import Groq
 #  CONFIGURATION
 # ============================================================
 GROQ_API_KEY = "YOUR_GROQ_API_KEY_HERE"
-BASE_DIR     = "/Users/sameer/Desktop/AIheathAgent/Capstone_Healthcare_Decision_Intelligence_Agent"
+BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_PATH  = os.path.join(BASE_DIR, "llm_outputs_full.json")
 BATCH_DELAY  = 0.5   # slightly longer delay for paid tier safety
 # ============================================================

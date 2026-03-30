@@ -10,8 +10,8 @@ import google.generativeai as genai
 # ==========================================
 # CONFIGURATION & PATHS
 # ==========================================
-BASE_DIR = '/Users/sameer/Desktop/AIheathAgent/Capstone_Healthcare_Decision_Intelligence_Agent'
-ORIGINAL_DATA_DIR = '/Users/sameer/Documents/DataScience_Capstone_Project/Capstone_Healthcare_Decision_Intelligence_Agent/dataset/'
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ORIGINAL_DATA_DIR = os.path.join(BASE_DIR, 'dataset')
 DB_PATH = os.path.join(ORIGINAL_DATA_DIR, 'hf_project.duckdb')
 MODEL_PATH = os.path.join(BASE_DIR, 'model_artifacts.pkl')
 LLM_PATH = os.path.join(BASE_DIR, 'llm_outputs_gemini.json')
