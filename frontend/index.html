@@ -3,170 +3,333 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Healthcare Decision Intelligence</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+    <title>Healthcare Decision Intelligence Agent</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="styles.css">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="styles.css?v=4">
 </head>
 <body>
-    <div class="app-container">
-        <!-- Sidebar Navigation -->
-        <aside class="sidebar">
-            <div class="logo">
-                <i data-lucide="activity" class="icon-large"></i>
-                <span>Decision<br>Intelligence</span>
-            </div>
-            <nav>
-                <button class="nav-btn active" onclick="switchTab('dashboard')">
-                    <i data-lucide="layout-dashboard"></i> Dashboard Home
-                </button>
-                <button class="nav-btn" onclick="switchTab('historical')">
-                    <i data-lucide="archive"></i> Historical Patients
-                </button>
-                <button class="nav-btn" onclick="switchTab('triage')">
-                    <i data-lucide="microscope"></i> Live Triage
-                </button>
-            </nav>
-        </aside>
+<div class="app-container">
 
-        <!-- Main Content Area -->
-        <main class="main-content">
-            
-            <!-- ====== DASHBOARD TAB ====== -->
-            <section id="tab-dashboard" class="tab-content active">
-                <header>
-                    <h1>Healthcare Decision Intelligence Agent</h1>
-                    <p>Leveraging MIMIC-IV to predict 30-day Heart Failure Readmission Risk with live Gemini alerting.</p>
-                </header>
-                <div class="glass-container metrics-grid" id="dashboard-metrics">
-                    <div class="metric-card">
-                        <h3 class="metric-title">Total Patients</h3>
-                        <p class="metric-value" id="val-patients">Loading...</p>
-                    </div>
-                    <div class="metric-card">
-                        <h3 class="metric-title">Analyzed Admissions</h3>
-                        <p class="metric-value" id="val-admissions">Loading...</p>
-                    </div>
-                    <div class="metric-card">
-                        <h3 class="metric-title">Readmission Rate</h3>
-                        <p class="metric-value" id="val-rate">Loading...</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ====== HISTORICAL PATIENTS TAB ====== -->
-            <section id="tab-historical" class="tab-content">
-                <header>
-                    <h1>Historical Patient Lookup</h1>
-                    <p>Instantly retrieve predictions, SHAP explanations, and pre-computed Gemini AI clinical insights for existing patients.</p>
-                </header>
-                
-                <div class="glass-container control-panel">
-                    <label>Search Historical Admission (HADM_ID)</label>
-                    <div class="flex-row">
-                        <select id="patientSelect">
-                            <option value="">-- Select Patient --</option>
-                        </select>
-                        <button class="btn-primary" onclick="loadHistoricalPatient()">Retrieve Patient</button>
-                    </div>
-                </div>
-
-                <div class="results-grid" id="historical-results" style="display: none;">
-                    <!-- Left Column: Gemini Alerting -->
-                    <div class="glass-container ai-insights">
-                        <h2><i data-lucide="bot"></i> Gemini Clinical Insights</h2>
-                        
-                        <div id="hist-risk-badge" class="alert-box">
-                            <span class="badge-title">Current Alert Level</span>
-                            <h3 id="hist-risk-level">HIGH (24.0%)</h3>
-                        </div>
-
-                        <h4>🩺 Doctor's Summary</h4>
-                        <div class="info-box" id="hist-doctor-summary">Loading...</div>
-
-                        <h4>📋 Patient Precautions</h4>
-                        <ul class="precaution-list" id="hist-precautions"></ul>
-
-                        <h4>🗓️ Follow-Up Route</h4>
-                        <div class="success-box" id="hist-followup">Loading...</div>
-                        
-                        <details class="clinical-history-expand">
-                            <summary>View Original Clinical History</summary>
-                            <p id="hist-original-summary"></p>
-                        </details>
-                    </div>
-
-                    <!-- Right Column: SHAP Plot -->
-                    <div class="glass-container shap-analysis">
-                        <h2><i data-lucide="bar-chart-2"></i> SHAP Risk Drivers</h2>
-                        <p class="subtitle">Local feature importance explaining why this score was generated.</p>
-                        <div class="chart-wrapper">
-                            <canvas id="hist-shap-chart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ====== LIVE TRIAGE TAB ====== -->
-            <section id="tab-triage" class="tab-content">
-                <header>
-                    <h1>Live AI Admission Triage</h1>
-                    <p>Process a live patient. Adjust tabular clinical features, type an admitting note, and instantly generate risk predictions.</p>
-                </header>
-
-                <div class="results-grid">
-                    <!-- Left: Inputs -->
-                    <div class="glass-container triage-inputs">
-                        <h3>1. Model Tabular Features</h3>
-                        <div class="feature-table-wrapper" id="triage-features-container">
-                            <!-- Populated via JS -->
-                            <p>Loading baseline patient data...</p>
-                        </div>
-
-                        <h3 style="margin-top: 25px;">2. Doctor's Admitting Note</h3>
-                        <textarea id="triage-note" class="modern-textarea" rows="4">Patient presents with shortness of breath and elevated heart rate. Has a history of type 2 diabetes and hypertension.</textarea>
-                        
-                        <button class="btn-primary full-width" onclick="runLiveTriage()" id="btn-run-triage" style="margin-top: 20px;">
-                            🚀 Analyze Live Patient
-                        </button>
-                    </div>
-
-                    <!-- Right: Results -->
-                    <div class="glass-container ai-insights" id="triage-results" style="opacity: 0.5;">
-                        <h2>3. Live Intelligence Inference</h2>
-                        <div class="loader" id="triage-loader" style="display: none;"></div>
-                        
-                        <div id="triage-output-content" style="display: none;">
-                            <div class="large-risk-score">
-                                Computed Live Risk: <span id="triage-risk-pct" class="danger-text">--%</span>
-                            </div>
-                            
-                            <h4>🩺 Doctor's Live Alert</h4>
-                            <div class="info-box" id="triage-doctor-summary">...</div>
-
-                            <h4>📋 Actionable Precautions</h4>
-                            <ul class="precaution-list" id="triage-precautions"></ul>
-                            
-                            <h4>📉 Real-Time SHAP Waterfall</h4>
-                            <div class="chart-wrapper">
-                                <canvas id="triage-shap-chart"></canvas>
-                            </div>
-                        </div>
-                        
-                        <div id="triage-waiting-state">
-                            <p class="subtitle" style="text-align:center; padding: 40px;">Waiting for user input. Click 'Analyze Live Patient' to start inference.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </main>
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon"><i data-lucide="heart-pulse"></i></div>
+      <div class="logo-text">
+        <div class="logo-title">HealthDx</div>
+        <div class="logo-sub">Decision Intelligence</div>
+      </div>
     </div>
+    <nav class="sidebar-nav">
+      <button class="nav-btn active" onclick="switchTab('home',this)"><i data-lucide="home"></i><span>Home</span></button>
+      <button class="nav-btn" onclick="switchTab('patient',this)"><i data-lucide="user-search"></i><span>Patient Analysis</span></button>
+      <button class="nav-btn" onclick="switchTab('triage',this)"><i data-lucide="stethoscope"></i><span>Live Triage</span></button>
+      <button class="nav-btn" onclick="switchTab('model',this)"><i data-lucide="cpu"></i><span>Model Info</span></button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="llm-badge"><i data-lucide="zap"></i><span>Gemini 2.5 Flash</span></div>
+      <div class="llm-badge" style="margin-top:6px"><i data-lucide="database"></i><span>MIMIC-IV · 4,508 pts</span></div>
+    </div>
+  </aside>
 
-    <!-- Initialize Lucide Icons -->
-    <script>
-      lucide.createIcons();
-    </script>
-    <script src="app.js"></script>
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- ====== HOME TAB ====== -->
+    <section id="tab-home" class="tab active">
+      <div class="hero-section">
+        <div class="hero-badge">MIMIC-IV Clinical Intelligence Platform</div>
+        <h1 class="hero-title">Heart Failure<br><span class="gradient-text">Readmission Risk</span><br>Prediction</h1>
+        <p class="hero-desc">AI-powered 30-day readmission risk analysis using SHAP explainability,<br>semantic RAG retrieval, and LLM-generated clinical insights.</p>
+        <div class="search-card">
+          <label class="search-label">Enter Patient Admission ID (HADM_ID)</label>
+          <div class="search-row">
+            <input type="text" id="home-search" class="search-input" placeholder="e.g. 20090653" onkeypress="if(event.key==='Enter')searchFromHome()">
+            <button class="btn-primary" onclick="searchFromHome()"><i data-lucide="search"></i> Analyze Patient</button>
+          </div>
+          <p class="search-hint">Or <a href="#" class="link" onclick="event.preventDefault();pickRandomPatient()">load a random patient</a> to explore the dashboard</p>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-icon blue"><i data-lucide="users"></i></div><div><div class="stat-val" id="stat-patients">&#8212;</div><div class="stat-label">Total Patients</div></div></div>
+        <div class="stat-card"><div class="stat-icon red"><i data-lucide="activity"></i></div><div><div class="stat-val" id="stat-rate">&#8212;</div><div class="stat-label">Readmission Rate</div></div></div>
+        <div class="stat-card"><div class="stat-icon green"><i data-lucide="bot"></i></div><div><div class="stat-val" id="stat-alerts">&#8212;</div><div class="stat-label">AI Alerts Generated</div></div></div>
+        <div class="stat-card"><div class="stat-icon purple"><i data-lucide="bar-chart-2"></i></div><div><div class="stat-val">50</div><div class="stat-label">Clinical Features</div></div></div>
+      </div>
+
+      <div class="pipeline-section">
+        <h3 class="section-heading">How It Works</h3>
+        <div class="pipeline-row">
+          <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-icon"><i data-lucide="database"></i></div><div class="pipe-title">MIMIC-IV Data</div><div class="pipe-desc">Labs, vitals, medications &amp; diagnoses from 4,508 HF admissions</div></div>
+          <div class="pipe-arrow"><i data-lucide="chevron-right"></i></div>
+          <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-icon"><i data-lucide="cpu"></i></div><div class="pipe-title">ML Pipeline</div><div class="pipe-desc">SelectKBest &#8594; StandardScaler &#8594; Logistic Regression (AUC 0.67)</div></div>
+          <div class="pipe-arrow"><i data-lucide="chevron-right"></i></div>
+          <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-icon"><i data-lucide="bar-chart-2"></i></div><div class="pipe-title">SHAP Analysis</div><div class="pipe-desc">Per-patient feature contributions for every prediction</div></div>
+          <div class="pipe-arrow"><i data-lucide="chevron-right"></i></div>
+          <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-icon"><i data-lucide="search"></i></div><div class="pipe-title">Semantic RAG</div><div class="pipe-desc">ChromaDB retrieves similar historical cases (100% coverage)</div></div>
+          <div class="pipe-arrow"><i data-lucide="chevron-right"></i></div>
+          <div class="pipe-step"><div class="pipe-num">5</div><div class="pipe-icon"><i data-lucide="message-square"></i></div><div class="pipe-title">LLM Insights</div><div class="pipe-desc">LLaMA 3.1 generates doctor alerts &amp; patient precautions</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== PATIENT ANALYSIS TAB ====== -->
+    <section id="tab-patient" class="tab">
+      <div class="page-header">
+        <div><h2 class="page-title">Patient Analysis</h2><p class="page-sub">Complete readmission risk profile with explainability</p></div>
+        <div class="inline-search">
+          <input type="text" id="inline-search" class="inline-input" placeholder="Search HADM_ID..." onkeypress="if(event.key==='Enter')searchInline()">
+          <button class="btn-secondary" onclick="searchInline()">Load</button>
+        </div>
+      </div>
+
+      <div id="patient-loading" class="center-state" style="display:none">
+        <div class="spinner"></div><p class="state-text">Analyzing patient data...</p>
+      </div>
+
+      <div id="patient-empty" class="center-state">
+        <i data-lucide="user-search" style="width:48px;height:48px;color:#3b82f6;margin-bottom:16px"></i>
+        <p class="state-text">Search for a Patient ID to view their complete risk analysis</p>
+        <button class="btn-primary" style="margin-top:16px" onclick="switchTab('home', document.querySelectorAll('.nav-btn')[0])">Go to Search</button>
+      </div>
+
+      <div id="patient-results" style="display:none">
+
+        <!-- Row 1: Risk Gauge + SHAP -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="heart-pulse"></i> Readmission Risk</span>
+              <span class="hadm-tag" id="res-hadm">HADM &#8212;</span>
+            </div>
+            <div class="gauge-wrap">
+              <svg viewBox="0 5 200 110" class="gauge-svg">
+                <path d="M 20 100 A 80 80 0 1 0 180 100" fill="none" stroke="#1e1e24" stroke-width="14" stroke-linecap="round"/>
+                <path id="gauge-arc" d="M 20 100 A 80 80 0 1 0 180 100" fill="none" stroke="#3b82f6" stroke-width="14" stroke-linecap="round" stroke-dasharray="0 251.3"/>
+                <text id="gauge-pct" x="100" y="88" text-anchor="middle" fill="white" font-size="28" font-weight="800" font-family="Inter, sans-serif">--%</text>
+                <text id="gauge-label" x="100" y="108" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="700" font-family="Inter, sans-serif" letter-spacing="2">&#8212; RISK</text>
+              </svg>
+            </div>
+            <div class="risk-meta">
+              <div class="risk-meta-row">
+                <span class="meta-key">Risk Category</span>
+                <span class="risk-badge-lg" id="risk-badge-lg">&#8212;</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="bar-chart-horizontal"></i> Top Risk Drivers</span>
+              <span class="subtitle-tag">SHAP feature importance</span>
+            </div>
+            <div class="chart-wrap"><canvas id="shap-chart"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Row 2: Mental Health + Clinical Context -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="brain"></i> Mental Health Burden</span>
+              <span class="mh-badge" id="mh-badge">&#8212;</span>
+            </div>
+            <p class="card-desc">Proxy signals from clinical complexity, polypharmacy, and admission history.</p>
+            <ul class="signal-list" id="mh-signals"></ul>
+            <div class="mh-meter-wrap">
+              <div class="mh-meter"><div class="mh-fill" id="mh-fill"></div></div>
+              <div class="mh-labels"><span>LOW</span><span>MED</span><span>HIGH</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="file-text"></i> Clinical Context</span>
+              <span class="rag-badge retrieved" id="rag-source-badge"><i data-lucide="file-search"></i> Retrieved</span>
+            </div>
+            <div class="context-box" id="clinical-context">&#8212;</div>
+          </div>
+        </div>
+
+        <!-- Row 3: AI Insights -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i data-lucide="bot"></i> AI Clinical Insights</span>
+            <div class="view-toggle">
+              <button class="tog-btn active" id="tog-doctor" onclick="setView('doctor')"><i data-lucide="stethoscope"></i> Doctor</button>
+              <button class="tog-btn" id="tog-patient" onclick="setView('patient')"><i data-lucide="user"></i> Patient</button>
+            </div>
+          </div>
+
+          <div id="doctor-view">
+            <div class="alert-strip" id="alert-strip">
+              <div class="alert-level-tag" id="alert-level-tag">HIGH RISK</div>
+              <div class="alert-text" id="alert-text">Loading insights...</div>
+            </div>
+            <div class="insights-2col">
+              <div>
+                <h4 class="sub-heading"><i data-lucide="clipboard-list"></i> Clinical Precautions</h4>
+                <ul class="prec-list" id="doctor-prec"></ul>
+              </div>
+              <div>
+                <h4 class="sub-heading"><i data-lucide="calendar-check"></i> Follow-Up Recommendations</h4>
+                <div class="followup-box" id="followup-box">&#8212;</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="patient-view" style="display:none">
+            <div class="patient-banner" id="patient-banner">
+              <i data-lucide="heart" style="width:28px;height:28px;flex-shrink:0"></i>
+              <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                  <div class="patient-banner-title">Your Health Summary</div>
+                  <span id="patient-risk-pct" style="font-size:1.1rem;font-weight:800"></span>
+                </div>
+                <div id="patient-summary-text" style="font-size:0.9rem;line-height:1.6">&#8212;</div>
+              </div>
+            </div>
+            <h4 class="sub-heading" style="margin-top:20px"><i data-lucide="list-checks"></i> Steps to Stay Healthy After Discharge</h4>
+            <div class="patient-steps" id="patient-steps"></div>
+            <div style="margin-top:16px">
+              <h4 class="sub-heading"><i data-lucide="calendar-check"></i> Your Follow-Up Plan</h4>
+              <div class="followup-box" id="patient-followup">&#8212;</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== CHAT WIDGET ====== -->
+      <button id="chat-bubble-btn" class="chat-bubble-btn" onclick="toggleChat()" style="display:none">
+        <i data-lucide="message-circle"></i><span>Ask AI</span>
+      </button>
+
+      <div id="chat-panel" class="chat-panel" style="display:none">
+        <div class="chat-panel-header">
+          <div class="chat-header-left">
+            <div class="chat-avatar"><i data-lucide="bot"></i></div>
+            <div>
+              <div class="chat-title">Health Assistant</div>
+              <div class="chat-subtitle">Powered by Gemini 2.5 Flash</div>
+            </div>
+          </div>
+          <button class="chat-close-btn" onclick="toggleChat()"><i data-lucide="x"></i></button>
+        </div>
+        <div class="chat-disclaimer">
+          <i data-lucide="shield-alert"></i>
+          This AI provides general health information only. Always consult your doctor.
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-quick-questions" id="chat-quick-questions">
+          <button class="quick-chip" onclick="sendQuickQuestion('Why am I at high risk?')">Why am I at high risk?</button>
+          <button class="quick-chip" onclick="sendQuickQuestion('What symptoms should I watch for?')">What symptoms should I watch?</button>
+          <button class="quick-chip" onclick="sendQuickQuestion('What foods should I avoid?')">What foods to avoid?</button>
+          <button class="quick-chip" onclick="sendQuickQuestion('When should I call my doctor?')">When to call doctor?</button>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" class="chat-input" placeholder="Ask about your health..."
+                 onkeypress="if(event.key==='Enter')sendChatMessage()">
+          <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMessage()">
+            <i data-lucide="send"></i>
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ====== LIVE TRIAGE TAB ====== -->
+    <section id="tab-triage" class="tab">
+      <div class="page-header">
+        <div><h2 class="page-title">Live AI Triage</h2><p class="page-sub">Real-time risk assessment for incoming patients</p></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3 class="section-title-sm">1. Clinical Features</h3>
+          <div class="feature-scroll" id="triage-features-container"><p class="state-text">Loading baseline data...</p></div>
+          <h3 class="section-title-sm" style="margin-top:20px">2. Doctor's Admitting Note</h3>
+          <textarea id="triage-note" class="note-area" rows="4">Patient presents with shortness of breath and elevated heart rate. History of type 2 diabetes and hypertension.</textarea>
+          <button class="btn-primary full-width" id="btn-triage" onclick="runLiveTriage()" style="margin-top:16px"><i data-lucide="zap"></i> Analyze Live Patient</button>
+        </div>
+        <div class="card">
+          <div id="triage-waiting" class="center-state-sm"><i data-lucide="activity" style="width:36px;height:36px;color:#3b82f6;margin-bottom:12px"></i><p class="state-text">Click Analyze to run live inference</p></div>
+          <div id="triage-loading" style="display:none;text-align:center;padding:40px"><div class="spinner" style="margin:0 auto"></div><p class="state-text" style="margin-top:12px">Running inference...</p></div>
+          <div id="triage-output" style="display:none">
+            <h3 class="section-title-sm">3. Live Results</h3>
+            <div class="triage-score-display">
+              <div class="triage-big-score" id="triage-big-score">--%</div>
+              <div class="triage-risk-badge" id="triage-risk-badge">&#8212;</div>
+            </div>
+            <div class="alert-strip" id="triage-alert-strip">
+              <div class="alert-level-tag" id="triage-alert-level">&#8212;</div>
+              <div class="alert-text" id="triage-alert-text">&#8212;</div>
+            </div>
+            <h4 class="sub-heading"><i data-lucide="clipboard-list"></i> Patient Precautions</h4>
+            <ul class="prec-list" id="triage-prec"></ul>
+            <h4 class="sub-heading" style="margin-top:16px"><i data-lucide="calendar-check"></i> Follow-Up Recommendations</h4>
+            <div class="followup-box" id="triage-followup">&#8212;</div>
+            <h4 class="sub-heading" style="margin-top:16px"><i data-lucide="bar-chart-horizontal"></i> SHAP Risk Drivers</h4>
+            <div class="chart-wrap"><canvas id="triage-shap-chart"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== MODEL INFO TAB ====== -->
+    <section id="tab-model" class="tab">
+      <div class="page-header">
+        <div><h2 class="page-title">Model Information</h2><p class="page-sub">Architecture, performance, and feature pipeline</p></div>
+      </div>
+      <div class="model-info-grid">
+        <div class="card model-hero-card">
+          <div class="model-big-icon"><i data-lucide="cpu"></i></div>
+          <div class="model-name-lg" id="model-name">LR + FeatureSelect</div>
+          <div class="model-class-tag" id="model-class">LogisticRegression</div>
+          <div class="model-kpis">
+            <div class="kpi"><div class="kpi-val" id="kpi-features">50</div><div class="kpi-label">Features</div></div>
+            <div class="kpi"><div class="kpi-val">0.67</div><div class="kpi-label">AUC</div></div>
+            <div class="kpi"><div class="kpi-val">4,508</div><div class="kpi-label">Patients</div></div>
+          </div>
+          <div class="pipeline-tag" id="model-pipeline">SelectKBest &#8594; StandardScaler &#8594; LogisticRegression</div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title-lg">Dataset</h3>
+          <div class="ds-table">
+            <div class="ds-row"><span class="ds-key">Source</span><span class="ds-val">MIMIC-IV v2.0</span></div>
+            <div class="ds-row"><span class="ds-key">Cohort</span><span class="ds-val">Heart Failure (ICD I50.x)</span></div>
+            <div class="ds-row"><span class="ds-key">Target</span><span class="ds-val">30-day readmission</span></div>
+            <div class="ds-row"><span class="ds-key">Positive Rate</span><span class="ds-val">~21.5% readmitted</span></div>
+            <div class="ds-row"><span class="ds-key">Train / Test</span><span class="ds-val">80 / 20 stratified split</span></div>
+            <div class="ds-row"><span class="ds-key">Medication Features</span><span class="ds-val" id="model-med-count">&#8212;</span></div>
+            <div class="ds-row"><span class="ds-key">RAG Coverage</span><span class="ds-val">100% (ChromaDB semantic)</span></div>
+            <div class="ds-row"><span class="ds-key">LLM</span><span class="ds-val">Gemini 2.5 Flash</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title-lg">ML Pipeline Steps</h3>
+          <div class="step-list">
+            <div class="step-item"><div class="step-dot"></div><div><div class="step-name">Feature Engineering</div><div class="step-desc">Lab delta features, 9 medication flags, GDMT scoring, change features</div></div></div>
+            <div class="step-item"><div class="step-dot"></div><div><div class="step-name">SelectKBest (k=50)</div><div class="step-desc">F-statistic selection from 146 engineered features</div></div></div>
+            <div class="step-item"><div class="step-dot"></div><div><div class="step-name">StandardScaler</div><div class="step-desc">Z-score normalization required for logistic regression</div></div></div>
+            <div class="step-item"><div class="step-dot"></div><div><div class="step-name">Logistic Regression</div><div class="step-desc">class_weight='balanced', max_iter=1000, AUC = 0.6700</div></div></div>
+            <div class="step-item"><div class="step-dot"></div><div><div class="step-name">SHAP LinearExplainer</div><div class="step-desc">Per-patient feature contributions computed at inference</div></div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title-lg">Selected Features <span id="feat-count-tag" class="count-tag">50</span></h3>
+          <div class="feat-grid" id="feat-grid"><p class="state-text">Loading...</p></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>lucide.createIcons();</script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
