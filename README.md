@@ -1,160 +1,249 @@
-# Heart Failure 30-Day Readmission Prediction
-## Healthcare Decision Intelligence Platform
+# Healthcare Decision Intelligence Agent
+### Predicting 30-Day Heart Failure Readmission with Explainable ML, RAG, and Generative AI
 
-## Project Overview
-This project builds an end-to-end machine learning + AI pipeline to predict **30-day hospital readmission** for heart failure (HF) patients using the **MIMIC-IV** clinical database, explain predictions via **SHAP analysis**, and generate **clinician-ready patient summaries** using a **RAG + LLM pipeline**.
+DS 5500 — Capstone: Applications in Data Science  
+Team 20 | Abdul Sameer Shaik | Kirubhaharan Joseph Abraham  
+Instructor: Dr. Fatema Nafa | Northeastern University | Spring 2026
 
-The system helps doctors identify high-risk patients before discharge and provides actionable, patient-specific precautions to reduce readmission rates.
+---
 
-## Current Status
-✅ Data loading, cohort construction, feature engineering, preprocessing  
-✅ Iterative model training with hyperparameter tuning  
-✅ SHAP explainability analysis (global + per-patient risk drivers)  
-✅ RAG retrieval pipeline (clinical notes + SHAP-grounded prompts)  
-✅ LLM generation — doctor alerts + patient precautions (via Groq LLaMA-3.3-70B)  
+## What This Project Does
 
-## Dataset
-- **Source:** MIMIC-IV (Medical Information Mart for Intensive Care, version IV)
-- **Cohort:** 4,508 heart failure admissions from 4,074 unique patients (after excluding deaths within 30 days)
-- **Label:** `readmitted_30d` — binary (1 = readmitted within 30 days, 0 = not readmitted)
-- **Class distribution:** 78.5% not readmitted / 21.5% readmitted
-- **RAG data:** 1,261 patients with clinical HPI notes and AI-generated summaries (`HPI.json`, `RAG_data_summary.json`)
+Heart failure patients are frequently readmitted to the hospital within 30 days of discharge — and in many cases, that readmission could have been prevented. The problem is that most hospitals either don't have a good way to identify which patients are truly high-risk before they leave, or if they do have a risk score, it's just a number with no explanation attached to it.
 
-## Pipeline Architecture
+This project builds a full system that addresses both sides of the problem. It predicts which heart failure patients are likely to be readmitted within 30 days, explains why using SHAP feature attribution, and then uses a Retrieval-Augmented Generation (RAG) pipeline with Google Gemini to write two different reports from the same patient data — one for the doctor with clinical language, and one for the patient in plain English they can actually understand.
 
-### Step 0–1: Data Loading (`01_Data_Loading.ipynb`)
-- All 11 CSV files loaded into a persistent **DuckDB** database for fast SQL-based analytics
+Everything is served through a web application where clinicians can look up any patient, run a live triage for a new admission, and patients can ask follow-up questions through a simple chatbot.
 
-### Step 2: Cohort Construction (`02_Cohort_Construction.ipynb`)
-- Identified HF admissions via ICD codes, excluded 253 patients who died within 30 days to prevent data leakage
+---
 
-### Step 3: Feature Engineering (`03_Feature_Engineering.ipynb`)
-| Feature Group | Features Created |
+## Project Status
+
+- Data loading, cohort construction, feature engineering, and preprocessing are complete (Notebooks 01–04)
+- Model training across 5 experimental steps is complete, final model selected (Notebook 05)
+- SHAP explainability analysis with global and per-patient visualizations is complete (Notebook 06)
+- RAG retrieval pipeline with ChromaDB semantic vector store is complete (Notebooks 07, 07b)
+- Batch LLM generation for 2,263 patients using Gemini 2.5 Flash is complete (Notebook 08)
+- Multi-dimensional LLM evaluation including BERTScore and Flesch readability is complete (Notebook 09)
+- Full-stack web application with FastAPI backend and VanillaJS frontend is complete
+- Final technical report and presentation are complete
+
+---
+
+## The Dataset
+
+We used MIMIC-IV, a publicly available and fully de-identified electronic health record database from Beth Israel Deaconess Medical Center in Boston, covering hospital admissions from 2008 to 2019. Access requires completing a data use agreement through PhysioNet — the data is IRB-exempt because it contains no personally identifiable information.
+
+We filtered the full database down to heart failure patients by looking for the relevant ICD diagnosis codes. After removing records with data quality issues, patients who died in hospital, and patients who died within 30 days of discharge (since they can't be readmitted), we ended up with 4,508 admissions from 4,074 unique patients. About 21.5% of them were readmitted within 30 days.
+
+---
+
+## How the Pipeline Works
+
+### Step 1 — Data Loading
+All MIMIC-IV tables are loaded into a DuckDB database. This makes SQL-based queries fast and keeps everything in one place without needing a full database server.
+
+### Step 2 — Cohort Construction
+We identified heart failure admissions using ICD-9 code 428.x and ICD-10 code I50.x, then carefully removed edge cases that would introduce data leakage into the labels — specifically patients who died during the admission or within 30 days after discharge.
+
+### Step 3 — Feature Engineering
+We built 146 features organized into six groups:
+
+| Group | What it includes |
 |---|---|
-| **Lab values** (14 tests) | First, last, min, max per admission (56 features) |
-| **Demographics** | Age, gender |
-| **Admission info** | Type, insurance, marital status, race, discharge location |
-| **Clinical** | Length of stay, comorbidity count, procedure count, infection flag, prior admissions |
-| **Temporal** | Lab change features (last − first) for all 14 labs |
+| Lab values | First, last, min, max, and change (last minus first) for 14 lab tests — 56 features total |
+| Medications | GDMT drug flags (loop diuretics, beta-blockers, ACE/ARB, etc.), GDMT composite score, furosemide dose, unique drug count |
+| Demographics | Age, gender |
+| Admission details | Admission type, insurance, marital status, race, discharge location |
+| Administrative | Length of stay, number of prior admissions, number of ICD diagnoses |
+| Comorbidities | Diabetes, CKD, COPD, atrial fibrillation, hypertension |
+| Vital signs | Mean heart rate, blood pressure, oxygen saturation, respiratory rate |
 
-**Final feature matrix:** 4,508 rows × 137 columns (after one-hot encoding)
+The lab change features (creatinine rising, for example) were particularly important because they capture how a patient's condition was trending during the stay, not just a snapshot.
 
-### Step 4: Preprocessing (`04_Data_Preprocessing.ipynb`)
-- Median imputation for numerical, 'UNKNOWN' for categorical
-- One-hot encoding of 6 categorical variables
-- Stratified 80/20 train/test split
+### Step 4 — Preprocessing
+Numerical columns were imputed with medians computed on the training set only. Categorical columns were filled with the string 'UNKNOWN' rather than mode imputation, because the fact that something is unknown is itself a signal. We then applied one-hot encoding and did a stratified 80/20 train/test split.
 
-### Step 5: Model Training (`05_Model_Training.ipynb`)
+### Step 5 — Model Training
 
-| Step | What We Did | Test ROC-AUC | Test F1 |
-|------|-------------|-------------|---------|
-| 5A | Baseline LR + XGBoost | 0.6305 / 0.6065 | 0.3911 / 0.1545 |
-| 5B | + Feature Selection (SelectKBest, top 40) | **0.6559** | 0.4056 |
-| 5C | + SMOTE oversampling | 0.6448 | 0.40 |
-| 5D | + GridSearchCV tuning | 0.6546 | 0.40 |
+We ran five rounds of experiments to find the best model:
 
-**Best model:** Logistic Regression (L1, C=0.05, balanced) — **Test ROC-AUC: 0.6546**  
-Artifacts saved to `model_artifacts.pkl` (scaler, selector, model, SHAP explainer, selected features)
+| Step | Model | AUC-ROC | F1 | What we learned |
+|---|---|---|---|---|
+| Baseline | Majority class | 0.500 | 0.215 | Reference point |
+| 5A | Logistic Regression, all 146 features | 0.6305 | 0.3911 | Decent start |
+| 5A | Gradient Boosting, all 146 features | 0.6065 | 0.1545 | GB completely failed on the minority class |
+| 5B | LR + SelectKBest (top 50 features) | 0.6559 | 0.4056 | Biggest gain in the whole experiment |
+| 5C | LR + SMOTE oversampling | 0.6448 | 0.4000 | SMOTE added noise and made things slightly worse |
+| 5D | LR + GridSearchCV tuning | 0.5987 | 0.3614 | Overfitting to cross-validation folds |
+| 5E | LR + XGBoost ensemble | ~0.670 | ~0.410 | Small gain, too complex for the benefit |
+| **Final** | **LR + SelectKBest (k=50)** | **0.6739** | **0.4142** | Best overall |
 
-### Step 6: Risk Prediction Table (`06_Risk_Prediction_Table.ipynb`)
-- Generates a ranked risk table for all test patients
+The final model uses Logistic Regression with C=0.1, L2 penalty, balanced class weighting, and SelectKBest with k=50. We chose logistic regression over more complex models for three reasons: the dataset is not large enough for deep learning, clinical interpretability is a hard requirement, and logistic regression allows exact SHAP computation without any approximation.
 
-### Step 7: SHAP Explainability (`07_SHAP.ipynb`)
-- Applied `shap.LinearExplainer` to the Tuned Logistic Regression model
-- Generated global **SHAP Summary Plot** (bar) for feature importance
-- Generated per-patient **Waterfall Plots** showing individual risk contribution of each feature
-- Top global risk drivers: `bicarbonate_first`, `discharge_location_HOME HEALTH CARE`, `hemoglobin_max`, `marital_status_SINGLE`, `num_prior_admissions`
+### Step 6 — SHAP Explainability
+For logistic regression, the SHAP value for each feature is simply the model coefficient multiplied by the scaled feature value. This is exact — no sampling or approximation needed. We generated summary plots, beeswarm plots, per-patient waterfall charts, and a medication impact chart. The top risk drivers across the cohort were creatinine change, number of prior admissions, length of stay, furosemide dose, and GDMT score.
 
-### Step 8: RAG Retrieval Pipeline (`08_RAG_Retrieval.ipynb`)
-- Recreates the test set with `hadm_id` preserved for patient-level mapping
-- Loads `RAG_data_summary.json` (1,261 AI clinical summaries) and `HPI.json` (raw clinical notes)
-- Matches 236 test patients and 1,192 full-dataset patients to their clinical summaries
-- Builds structured prompt contexts combining:
-  - Patient clinical history
-  - Predicted readmission risk (%)
-  - Top 3–4 SHAP-identified risk drivers
-- Saves 236 formulated prompts to `rag_prompts.json`
+### Step 7 and 7b — RAG Pipeline
+We embedded all 4,508 MIMIC-IV discharge summaries using Sentence Transformers (all-MiniLM-L6-v2), producing 384-dimensional vectors, and stored them in a ChromaDB vector store. When a patient is analyzed, the system retrieves the top 3 most semantically similar past discharge summaries using cosine similarity and injects them into the Gemini prompt as clinical context. This grounds the AI-generated reports in real clinical language rather than letting the model hallucinate.
 
-### Step 9: LLM Clinical Generation (`09_RAG_LLM_Generation.ipynb`)
-Uses **Groq LLaMA-3.3-70B** (free tier) to generate structured clinical output per patient:
+### Step 8 — LLM Generation
+Google Gemini 2.5 Flash receives the patient's risk probability, their top 3 SHAP drivers, and the RAG-retrieved clinical context. It returns a structured JSON with six fields:
 
-```json
-{
-  "doctor_alert": {
-    "risk_level": "HIGH / MEDIUM / LOW",
-    "risk_summary": "Clinical explanation for attending physician..."
-  },
-  "patient_precautions": [
-    "Actionable step 1 for the patient",
-    "Actionable step 2 for the patient",
-    "Actionable step 3 for the patient",
-    "Actionable step 4 for the patient"
-  ],
-  "follow_up_recommendations": "Care team guidance..."
-}
+- `doctor_alert` — risk level (HIGH/MEDIUM/LOW) and a 2-3 sentence clinical summary for the attending physician
+- `doctor_precautions` — four specific clinical interventions the doctor should take
+- `patient_precautions` — four plain-language steps the patient can understand and act on
+- `follow_up_recommendations` — hospital-side logistics for the care team
+- `patient_follow_up` — what the patient personally needs to do after discharge
+
+We pre-computed outputs for 2,263 patients. The remaining patients get their report generated live on first load. We enforce JSON output via `response_mime_type='application/json'` which gave us 100% parseable output across all patients.
+
+### Step 9 — LLM Evaluation
+We evaluated the LLM outputs across six dimensions:
+
+| Metric | Value | Threshold | Result |
+|---|---|---|---|
+| AUC-ROC | 0.6739 | 0.65 | Pass |
+| Output completeness | 100% | 100% | Pass |
+| BERTScore F1 | 0.8410 | 0.75–0.92 | Pass |
+| Average Flesch Reading Ease (patient text) | 60.4 | 60 | Pass |
+| Risk level alignment with ground truth | 71.1% | 80% | Fair |
+| Records with Flesch score above 60 | 56.5% | 80% | Fail |
+
+The BERTScore of 0.8410 tells us that doctor and patient texts are semantically covering the same clinical situation but are written differently enough to confirm that the plain-language simplification is actually happening. The Flesch failure is our most significant quality gap — medically complex patients tend to get summaries with more clinical jargon bleeding through.
+
+---
+
+## The Web Application
+
+The app runs at `http://localhost:8000/app` and has four views:
+
+- **Dashboard** — shows total patients, admissions, readmission rate, and number of AI alerts generated
+- **Patient Analysis** — enter an admission ID to see the SHAP waterfall chart, doctor report, patient report, chatbot, and the RAG-retrieved clinical context
+- **Live Triage** — manually enter clinical features for a new patient to get a real-time risk score and Gemini report
+- **Model Information** — shows the pipeline configuration and all 50 selected features
+
+The patient chatbot is built into the Patient Analysis view. It sends the patient's full context (risk level, top SHAP drivers, care instructions, follow-up plan) with every message and responds in under 100 words in plain language. It's designed to be stateless — no session data is stored server-side.
+
+There's also a Mental Health Burden score computed from three proxy signals — number of prior admissions, number of unique medications, and length of stay. It's not a diagnosis; it's a flag to alert clinicians when a social work or psychiatry consultation might be warranted.
+
+---
+
+## Testing
+
+We wrote 22 test cases across three levels:
+
+**Data pipeline unit tests (UT-01 to UT-08)** cover cohort size, readmission rate, lab change computation, missing value imputation, one-hot encoding, stratified split balance, feature alignment, and SelectKBest output shape.
+
+**Model unit tests (MT-01 to MT-07)** cover risk probability range, SHAP sum property, SHAP sort order, model reproducibility, artifact loading, zero-input stability, and column alignment with missing features.
+
+**API integration tests (IT-01 to IT-07)** cover patient lookup for pre-computed records, 404 for invalid IDs, live triage endpoint response, chatbot response length and format, Gemini rate limit handling, metrics endpoint, and JSON schema compliance.
+
+---
+
+## Running the Project
+
+```bash
+# Clone the repo
+git clone https://github.com/AbdulSameerS/Capstone_Healthcare_Decision_Intelligence_Agent.git
+cd Capstone_Healthcare_Decision_Intelligence_Agent
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Place MIMIC-IV tables in the dataset/ folder, then run the notebooks in order:
+# 01 → 02 → 03 → 04 → 05 → 06 → 07 → 07b → 08 → 09
+
+# Set your Gemini API key
+export GEMINI_API_KEY="your_key_here"
+
+# Start the backend
+uvicorn backend.main:app --reload --port 8000
+
+# Open in browser
+# http://localhost:8000/app
 ```
 
-Results saved to `llm_outputs_full.json`. To resume generation for remaining patients: `python resume_rag_pipeline.py`
+**Available API endpoints:**
 
-## Key Findings
-- Our AUC of **0.61–0.65** is consistent with published MIMIC-based HF readmission studies (0.60–0.68)
-- **Logistic Regression consistently outperforms Gradient Boosting** on this moderately-sized, imbalanced dataset
-- Feature selection provided the **largest single improvement** in model performance
-- SHAP analysis reveals `bicarbonate_first`, discharge location, and hemoglobin levels as the strongest readmission predictors
+| Endpoint | Method | What it does |
+|---|---|---|
+| `/api/metrics` | GET | Dashboard population-level metrics |
+| `/api/patients` | GET | Lists available admission IDs |
+| `/api/patient/{hadm_id}` | GET | Full patient analysis with ML, SHAP, LLM, and RAG |
+| `/api/triage/baseline` | GET | Fetches a random patient for the live triage view |
+| `/api/triage/live` | POST | Real-time risk prediction and Gemini report |
+| `/api/chat` | POST | Patient chatbot |
+| `/api/model/info` | GET | Model configuration and selected features |
 
-## Tech Stack
-- **Database:** DuckDB
-- **Data Processing:** Pandas, NumPy
-- **Machine Learning:** Scikit-learn, imbalanced-learn (SMOTE)
-- **Explainability:** SHAP (LinearExplainer)
-- **LLM / RAG:** Groq API (LLaMA-3.3-70B), google-generativeai (Gemini)
-- **Visualization:** Matplotlib
-- **App:** Streamlit (`app.py`)
+---
 
 ## Repository Structure
+
 ```
+Capstone_Healthcare_Decision_Intelligence_Agent/
 ├── Notebook/
 │   ├── 01_Data_Loading.ipynb
 │   ├── 02_Cohort_Construction.ipynb
 │   ├── 03_Feature_Engineering.ipynb
+│   ├── 03b_Medications_Vitals.ipynb
 │   ├── 04_Data_Preprocessing.ipynb
 │   ├── 05_Model_Training.ipynb
-│   ├── 06_Risk_Prediction_Table.ipynb
-│   ├── 07_SHAP.ipynb
-│   ├── 08_RAG_Retrieval.ipynb
-│   └── 09_RAG_LLM_Generation.ipynb
+│   ├── 06_SHAP.ipynb
+│   ├── 07_RAG_Retrieval.ipynb
+│   ├── 07b_Vector_RAG.ipynb
+│   ├── 08_RAG_LLM_Generation.ipynb
+│   └── 09_LLM_Evaluation.ipynb
+├── backend/
+│   ├── main.py
+│   └── utils_api.py
+├── frontend/
+│   ├── index.html
+│   ├── app.js
+│   └── styles.css
 ├── dataset/
-│   ├── HPI.json                    # Raw clinical notes (1,261 patients)
-│   └── RAG_data_summary.json       # AI-generated clinical summaries
-├── model_artifacts.pkl             # Trained model, scaler, selector, SHAP explainer
-├── rag_prompts.json                # Pre-built RAG prompt contexts (236 patients)
-├── llm_outputs_full.json           # LLM-generated doctor alerts + precautions
-├── resume_rag_pipeline.py          # Resume LLM generation for remaining patients
-├── app.py                          # Streamlit dashboard
+│   ├── hf_project.duckdb
+│   └── RAG_data_summary.json
+├── model_artifacts.pkl
+├── llm_outputs_semantic.json
+├── rag_prompts_semantic.json
+├── DS5500_Final_Technical_Report.tex
+├── DS5500_Final_Presentation.md
 ├── requirements.txt
 └── README.md
 ```
 
-## How to Run
-```bash
-# 1. Clone the repo
-git clone https://github.com/AbdulSameerS/Capstone_Healthcare_Decision_Intelligence_Agent.git
+---
 
-# 2. Install dependencies
-pip install -r requirements.txt
+## Tech Stack
 
-# 3. Run notebooks sequentially (01 → 09)
+- **Database:** DuckDB
+- **Data processing:** Pandas, NumPy
+- **Machine learning:** Scikit-learn (Logistic Regression, SelectKBest, StandardScaler)
+- **Explainability:** Linear SHAP attribution
+- **RAG:** ChromaDB, Sentence Transformers (all-MiniLM-L6-v2)
+- **LLM:** Google Gemini 2.5 Flash via google-genai SDK
+- **LLM evaluation:** bert-score, textstat
+- **Backend:** FastAPI, Uvicorn, Pydantic
+- **Frontend:** VanillaJS, Chart.js
+- **Visualization:** Matplotlib, SHAP
 
-# 4. For LLM generation, set your Groq API key in 09_RAG_LLM_Generation.ipynb
-#    Get a free key at: https://console.groq.com
+---
 
-# 5. Launch the Streamlit app
-streamlit run app.py
-```
+## Important Notes
+
+MIMIC-IV is fully de-identified and no patient information is stored, transmitted, or displayed by this application. Gemini API calls only receive anonymized clinical feature summaries — no names, dates of birth, or identifiers of any kind.
+
+This system is a research prototype built for the DS 5500 capstone course. It is not intended for direct clinical use and has not been validated for deployment. Clinical adoption would require prospective validation on independent patient populations and regulatory approval.
+
+---
 
 ## References
-- MIMIC-IV Database: https://physionet.org/content/mimiciv/
-- Yu & Son (2024) — Heart failure readmission prediction systematic review
-- CMS Hospital Readmissions Reduction Program
-- Groq LLaMA-3.3-70B: https://console.groq.com
 
+- MIMIC-IV: https://physionet.org/content/mimiciv/
+- Frizzell et al. (2017) — Prediction of 30-day all-cause readmissions in heart failure, JAMA Cardiology
+- Lundberg & Lee (2017) — A unified approach to interpreting model predictions, NeurIPS
+- Lewis et al. (2020) — Retrieval-Augmented Generation for knowledge-intensive NLP tasks, NeurIPS
+- Zhang et al. (2019) — BERTScore: Evaluating text generation with BERT, arXiv
+- Google Gemini 2.5 Flash: https://ai.google.dev
+- CMS Hospital Readmissions Reduction Program: https://www.cms.gov
