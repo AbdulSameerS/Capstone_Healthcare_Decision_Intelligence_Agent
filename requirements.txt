@@ -1,7 +1,36 @@
+# Core data processing
 duckdb
 pandas
 pyarrow
 numpy
+ 
+# Machine learning
 scikit-learn
 imbalanced-learn
+xgboost
+ 
+# Explainability
+shap
+ 
+# RAG pipeline
+chromadb
+sentence-transformers
+ 
+# LLM
+google-genai
+ 
+# LLM evaluation
+bert-score
+textstat
+ 
+# Backend API
+fastapi
+uvicorn[standard]
+pydantic
+ 
+# Visualization
 matplotlib
+ 
+# Jupyter
+ipykernel
+ipywidgets
